@@ -22,6 +22,10 @@ int init_Server(char * ip){
     int endpoint;
     struct sockaddr_in serv_addr;
 
+    init_state(&curr);
+    destroy_state(&curr);
+    return 0;
+
     if((endpoint = socket(AF_INET, SOCK_STREAM, 0))< 0){
         printf("Failed to create socket");
         return 1;
@@ -42,12 +46,6 @@ int init_Server(char * ip){
 
     pthread_create(&state_thread, NULL, &handle_state_update, NULL);
     pthread_detach(state_thread);
-
-    init_state(&curr);
-    initscr();
-
-    endwin();
-    destroy_state(&curr);
 
     pthread_create(&thread_pool[4], NULL, &Quit, NULL);
     pthread_join(thread_pool[4], NULL);

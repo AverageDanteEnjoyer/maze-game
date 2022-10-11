@@ -11,10 +11,7 @@ enum object_type{
     WALL,
     PLAYER,
     BEAST,
-    C_COIN,
-    T_COIN,
-    D_COIN,
-    DROPPED_T,
+    COINS,
     CAMPSITE
 };
 
