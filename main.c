@@ -7,6 +7,8 @@
 #include <errno.h>
 #include <string.h>
 #include "Server.h"
+#include "board.h"
+#include "state.h"
 
 int main(){
     int endpoint = 0;
@@ -39,14 +41,19 @@ int main(){
     recv(endpoint, &buff, 20, 0);
     printf("%d\n", buff);
 
-    char opcja;
+    struct board_t* main=board_create(4, 4);
+
+    char opcja=' ';
     while(1){
         printf("Wybierz opcje\n");
         scanf("%c", &opcja);
+        while(getchar()!='\n');
         if(opcja == 'Q'){
             close(endpoint);
             break;
         }
+        send(endpoint, &opcja, 1, 0);
     }
+    board_destroy(&main);
     return 0;
 }

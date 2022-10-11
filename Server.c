@@ -1,3 +1,4 @@
+#include <ncurses.h>
 #include "Server.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -9,15 +10,17 @@
 #include <pthread.h>
 #include <errno.h>
 #include <ncurses.h>
+#include "state.h"
 
-static pthread_t thread_pool[6];
+pthread_t thread_pool[6];
+pthread_t state_thread;
+char player_a=' ';
+struct state curr;
 
 
 int init_Server(char * ip){
-    int endpoint, soc_desc;
+    int endpoint;
     struct sockaddr_in serv_addr;
-
-    time_t ticks;
 
     if((endpoint = socket(AF_INET, SOCK_STREAM, 0))< 0){
         printf("Failed to create socket");
@@ -36,8 +39,19 @@ int init_Server(char * ip){
 
     pthread_create(&thread_pool[5], NULL, &handle_connection, &endpoint);
     pthread_detach(thread_pool[5]);
+
+    pthread_create(&state_thread, NULL, &handle_state_update, NULL);
+    pthread_detach(state_thread);
+
+    init_state(&curr);
+    initscr();
+
+    endwin();
+    destroy_state(&curr);
+
     pthread_create(&thread_pool[4], NULL, &Quit, NULL);
     pthread_join(thread_pool[4], NULL);
+
     close(endpoint);
     for(int i=0;i<4;i++){
         pthread_join(thread_pool[i], NULL);
@@ -63,7 +77,6 @@ void* handle_connection(void* args){
             pthread_create(&thread_pool[curr_clients], NULL, &handle_information_flow, &soc_desc[curr_clients]);
             curr_clients++;
         }
-        sleep(2);
     }
 }
 
@@ -77,15 +90,22 @@ void* handle_information_flow(void* args){
 
 
     while(1){
-        if(recv(soc_desc, NULL, 0, 0)==0){
+        if(recv(soc_desc, &player_a, 1, 0)==0){
             printf("Client of ID: %d has left\n", client_process_id);
             *(int*)args=-1;
             close(soc_desc);
             break;
         }
-        sleep(1);
+        printf("Player has pressed: %c\n", player_a);
     }
     return NULL;
+}
+
+void* handle_state_update(void* args){
+    while(1){
+        printf("Player input: %c", player_a);
+        sleep(4);
+    }
 }
 
 void* Quit(void* args){

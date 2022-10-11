@@ -1,45 +1,17 @@
 #ifndef SO2_GAME_STATE_H
 #define SO2_GAME_STATE_H
 
-enum object_type{
-    BUSHES,
-    AIR,
-    WALL,
-    PLAYER,
-    BEAST,
-    C_COIN,
-    T_COIN,
-    D_COIN,
-    DROPPED_T,
-    CAMPSITE
-};
+#include "board.h"
+#include "player.h"
 
-struct square{
-    unsigned int x;
-    unsigned int y;
-    enum object_type object;
-    int pid_or_coins;
-
-};
-struct board{
-    struct square** squares;//25x52
-};
-struct player_action{
-    int key_id;
-};
-struct player{
-    int pid;
-    unsigned int x;
-    unsigned int y;
-    int c_found;
-    int c_brought;
-    int deaths;
-    struct board view;
-};
 struct state{
     int turn;
-    struct board curr_board;
-    struct player* players;
+    int players_counter;
+    struct board_t* curr_board;
+    struct player_t* players;
 };
+
+void init_state(struct state* st);
+void destroy_state(struct state* st);
 
 #endif //SO2_GAME_STATE_H
