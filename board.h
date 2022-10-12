@@ -6,13 +6,16 @@
 #define SO2_GAME_BOARD_H
 
 enum object_type{
-    BUSHES,
-    AIR,
-    WALL,
-    PLAYER,
-    BEAST,
-    COINS,
-    CAMPSITE
+    BUSHES = '#',
+    AIR = ' ',
+    WALL = 'w',
+    PLAYER = 'P',
+    BEAST = '*',
+    c_COINS = 'c',
+    t_COINS = 't',
+    T_COINS = 'T',
+    DROP = 'D',
+    CAMPSITE = 'A'
 };
 
 struct point_t{

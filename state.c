@@ -4,6 +4,8 @@
 
 #include "state.h"
 #include <stdio.h>
+#include <ncurses.h>
+#include <unistd.h>
 
 void init_state(struct state* st){
     st->turn=0;
@@ -17,31 +19,19 @@ void init_state(struct state* st){
         if(fscanf(f, "%c", &c)==-1){
             break;
         }
-        if(c=='w'){
-            squares[i].object=WALL;
-        }else if(c=='#'){
-            squares[i].object=BUSHES;
-        }else if(c=='c'){
-            squares[i].object=COINS;
-            squares[i].pid_or_coins=1;
-        }else if(c=='t'){
-            squares[i].object=COINS;
-            squares[i].pid_or_coins=10;
-        }else if(c=='T'){
-            squares[i].object=COINS;
-            squares[i].pid_or_coins=50;
-        }else if(c=='A'){
-            squares[i].object=CAMPSITE;
-        }else if(c=='\n') {
+        if(c!='\n'){
+            squares[i].object=(int)c;
+        }else{
             i--;
         }
     }
+    st->players_counter=0;
+    st->turn=0;
+    st->campsite.x=23;
+    st->campsite.y=11;
+    st->server_pid=getpid();
     fclose(f);
 }
 void destroy_state(struct state* st){
     board_destroy(&(st->curr_board));
-}
-
-void display_state(struct state* st){
-
 }

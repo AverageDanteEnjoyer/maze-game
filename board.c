@@ -15,12 +15,12 @@ struct board_t* board_create(int width, int height){
         free(board);
         return NULL;
     }
-    for(int i=0;i<width;i++){
-        for(int j=0;j<height;j++){
-            board->squares[i*height+j].cords.x=i;
-            board->squares[i*height+j].cords.y=j;
-            board->squares[i*height+j].object=AIR;
-            board->squares[i*height+j].pid_or_coins=0;
+    for(int i=0;i<height;i++){
+        for(int j=0;j<width;j++){
+            board->squares[i*width+j].cords.x=j;
+            board->squares[i*width+j].cords.y=i;
+            board->squares[i*width+j].object=AIR;
+            board->squares[i*width+j].pid_or_coins=0;
         }
     }
     return board;

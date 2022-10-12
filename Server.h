@@ -6,5 +6,6 @@ void* handle_connection(void*);
 void* handle_information_flow(void* args);
 void* Quit(void* args);
 void* handle_state_update(void* args);
+void* display_server(void* args);
 
 #endif //SO2_GAME_SERVER_H

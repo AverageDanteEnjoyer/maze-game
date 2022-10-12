@@ -12,6 +12,8 @@
 #include <ncurses.h>
 #include "state.h"
 
+#define TEXT_COLOR 1
+
 pthread_t thread_pool[6];
 pthread_t state_thread;
 char player_a=' ';
@@ -23,6 +25,47 @@ int init_Server(char * ip){
     struct sockaddr_in serv_addr;
 
     init_state(&curr);
+
+    initscr();
+    start_color();
+
+    init_pair(WALL, COLOR_CYAN, COLOR_CYAN);
+    init_pair(AIR, COLOR_WHITE, COLOR_WHITE);
+    init_pair(c_COINS, COLOR_BLACK, COLOR_YELLOW);
+    init_pair(t_COINS, COLOR_BLACK, COLOR_YELLOW);
+    init_pair(T_COINS, COLOR_BLACK, COLOR_YELLOW);
+    init_pair(DROP, COLOR_BLACK, COLOR_YELLOW);
+    init_pair(CAMPSITE, COLOR_WHITE, COLOR_GREEN);
+    init_pair(BUSHES, COLOR_BLACK, COLOR_WHITE);
+    init_pair(TEXT_COLOR, COLOR_WHITE, COLOR_BLACK);
+
+
+    struct square_t* sq=curr.curr_board->squares;
+    for(int i=0;i<51*25;i++){
+        if(i%51==0){
+            printw("\n");
+        }
+        attron(COLOR_PAIR(sq[i].object));
+        printw("%c", sq[i].object);
+        attroff(COLOR_PAIR(sq[i].object));
+    }
+
+    attron(COLOR_PAIR(TEXT_COLOR));
+    mvprintw(2, 58, "Server's PID: %d", curr.server_pid);
+    mvprintw(3, 59, "Campsite X/Y: %d/%d", curr.campsite.x, curr.campsite.y);
+    mvprintw(4, 59, "Round number: %d", curr.turn);
+
+    mvprintw(6, 58, "Parameter: ");
+    //...
+    mvprintw(17, 58, "Legend: ");
+
+    attroff(COLOR_PAIR(TEXT_COLOR));
+
+    refresh();
+    getch();
+
+    endwin();
+
     destroy_state(&curr);
     return 0;
 
@@ -104,6 +147,10 @@ void* handle_state_update(void* args){
         printf("Player input: %c", player_a);
         sleep(4);
     }
+}
+
+void* display_server(void* args){
+
 }
 
 void* Quit(void* args){

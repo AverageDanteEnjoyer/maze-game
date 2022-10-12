@@ -9,6 +9,8 @@ struct state{
     int players_counter;
     struct board_t* curr_board;
     struct player_t* players;
+    struct point_t campsite;
+    int server_pid;
 };
 
 void init_state(struct state* st);
