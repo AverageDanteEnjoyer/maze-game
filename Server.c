@@ -11,38 +11,145 @@
 #include <errno.h>
 #include <ncurses.h>
 #include "state.h"
+#include <stdlib.h>
 
 #define TEXT_COLOR 1
 
-pthread_t thread_pool[6];
+pthread_t thread_pool[4];
 pthread_t state_thread;
+pthread_t quit_thread;
+pthread_t connection_thread;
+
 char player_a=' ';
 struct state curr;
-
 
 int init_Server(char * ip){
     int endpoint;
     struct sockaddr_in serv_addr;
 
-    init_state(&curr);
-
     initscr();
     start_color();
+    init_colors();
+    noecho();
 
-    init_pair(WALL, COLOR_CYAN, COLOR_CYAN);
-    init_pair(AIR, COLOR_WHITE, COLOR_WHITE);
+    init_state(&curr);
+
+    if((endpoint = socket(AF_INET, SOCK_STREAM, 0))< 0){
+        printf("Failed to create socket");
+        destroy_state(&curr);
+        endwin();
+        return 1;
+    }
+    bzero(&serv_addr, sizeof(serv_addr));
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = inet_addr(ip);
+    serv_addr.sin_port = htons(8000);
+
+    if(bind(endpoint, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0){
+        printf("Failed to bind\n");
+        destroy_state(&curr);
+        endwin();
+        return 1;
+    }
+
+    listen(endpoint, 4);
+    pthread_create(&connection_thread, NULL, &handle_connection, &endpoint);
+    pthread_detach(connection_thread);
+
+    pthread_create(&state_thread, NULL, &handle_state_update, NULL);
+    pthread_detach(state_thread);
+
+    pthread_create(&quit_thread, NULL, &Quit, NULL);
+    pthread_join(quit_thread, NULL);
+
+    close(endpoint);
+
+    for(int i=0;i<4;i++){
+       if(curr.players[i].socket_descriptor!=-1){
+           close(curr.players[i].socket_descriptor);
+       }
+    }
+    destroy_state(&curr);
+    endwin();
+    return 0;
+}
+
+void* handle_connection(void* args){
+    int endpoint=*(int*)args;
+    int soc_desc;
+
+    while(1){
+        soc_desc = accept(endpoint, (struct sockaddr*)NULL, NULL);
+        if(soc_desc!=-1){
+            int free_index=find_free(curr.players, 4);
+            if(free_index==-1){
+                close(endpoint);
+                continue;
+            }
+            curr.players[free_index].socket_descriptor=soc_desc;
+            pthread_create(&thread_pool[free_index], NULL, &handle_information_flow, &curr.players[free_index]);
+            pthread_detach(thread_pool[free_index]);
+        }
+    }
+}
+
+void* handle_information_flow(void* args){
+    struct player_t* speaker=(struct player_t*)args;
+    int soc_desc = speaker->socket_descriptor;
+
+
+    recv(soc_desc, &speaker->pid, sizeof(int), 0);
+    speaker->deaths=0;
+    speaker->last_pressed_key='\0';
+    printf("Client of ID: %d connected to server\n", speaker->pid);
+
+    while(1){
+        if(recv(soc_desc, &player_a, 1, 0)==0){
+            printf("\nClient of ID: %d has left\n", speaker->pid);
+            close(soc_desc);
+            speaker->socket_descriptor=-1;
+            break;
+        }
+    }
+}
+
+void* handle_state_update(void* args){
+    while(1){
+        update_screen();
+        sleep(1);
+    }
+}
+
+void* Quit(void* args){
+    char c;
+
+    while(1){
+        c=getch();
+        if(c == 'Q' || c == 'q'){
+            return NULL;
+        }
+    }
+}
+
+void init_colors(){
+    init_pair(WALL, COLOR_WHITE, COLOR_WHITE);
+    init_pair(AIR, COLOR_BLACK, COLOR_BLACK);
     init_pair(c_COINS, COLOR_BLACK, COLOR_YELLOW);
     init_pair(t_COINS, COLOR_BLACK, COLOR_YELLOW);
     init_pair(T_COINS, COLOR_BLACK, COLOR_YELLOW);
     init_pair(DROP, COLOR_BLACK, COLOR_YELLOW);
     init_pair(CAMPSITE, COLOR_WHITE, COLOR_GREEN);
-    init_pair(BUSHES, COLOR_BLACK, COLOR_WHITE);
+    init_pair(BUSHES, COLOR_GREEN, COLOR_BLACK);
     init_pair(TEXT_COLOR, COLOR_WHITE, COLOR_BLACK);
-
-
+    init_pair(PLAYER, COLOR_WHITE, COLOR_BLUE);
+    init_pair(BEAST, COLOR_RED, COLOR_BLACK);
+}
+void update_screen(){
+    move(0, 0);
     struct square_t* sq=curr.curr_board->squares;
-    for(int i=0;i<51*25;i++){
-        if(i%51==0){
+    for(int i=0;i<BOARD_WIDTH*BOARD_HEIGHT;i++){
+        if(i%BOARD_WIDTH==0){
             printw("\n");
         }
         attron(COLOR_PAIR(sq[i].object));
@@ -57,110 +164,61 @@ int init_Server(char * ip){
 
     mvprintw(6, 58, "Parameter: ");
     //...
-    mvprintw(17, 58, "Legend: ");
 
-    attroff(COLOR_PAIR(TEXT_COLOR));
+    mvprintw(17, 58, "Legend: ");
+    attron(COLOR_PAIR(PLAYER));
+    mvprintw(18, 59, "1234");
+    attron(COLOR_PAIR(TEXT_COLOR));
+    printw(" - players");
+
+    attron(COLOR_PAIR(WALL));
+    mvprintw(19, 59, "w");
+    attron(COLOR_PAIR(TEXT_COLOR));
+    printw(" - wall");
+
+    attron(COLOR_PAIR(BUSHES));
+    mvprintw(20, 59, "#");
+    attron(COLOR_PAIR(TEXT_COLOR));
+    printw(" - bushes(slow down)");
+
+    attron(COLOR_PAIR(BEAST));
+    mvprintw(21, 59, "*");
+    attron(COLOR_PAIR(TEXT_COLOR));
+    printw(" - wild beast");
+
+    attron(COLOR_PAIR(c_COINS));
+    mvprintw(22, 59, "c");
+    attron(COLOR_PAIR(TEXT_COLOR));
+    printw(" - one coin");
+
+    attron(COLOR_PAIR(t_COINS));
+    mvprintw(23, 59, "t");
+    attron(COLOR_PAIR(TEXT_COLOR));
+    printw(" - treasure(10 coins)");
+
+    attron(COLOR_PAIR(T_COINS));
+    mvprintw(24, 59, "T");
+    attron(COLOR_PAIR(TEXT_COLOR));
+    printw(" - large treasure(50 coins)");
+
+    attron(COLOR_PAIR(CAMPSITE));
+    mvprintw(25, 59, "A");
+    attron(COLOR_PAIR(TEXT_COLOR));
+    printw(" - campsite");
+
+    attron(COLOR_PAIR(DROP));
+    mvprintw(22, 89, "D");
+    attron(COLOR_PAIR(TEXT_COLOR));
+    printw(" - dropped treasure");
 
     refresh();
-    getch();
-
-    endwin();
-
-    destroy_state(&curr);
-    return 0;
-
-    if((endpoint = socket(AF_INET, SOCK_STREAM, 0))< 0){
-        printf("Failed to create socket");
-        return 1;
-    }
-    bzero(&serv_addr, sizeof(serv_addr));
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = inet_addr(ip);
-    serv_addr.sin_port = htons(8000);
-
-    if(bind(endpoint, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0){
-        printf("Failed to bind\n");
-        return 1;
-    }
-
-    pthread_create(&thread_pool[5], NULL, &handle_connection, &endpoint);
-    pthread_detach(thread_pool[5]);
-
-    pthread_create(&state_thread, NULL, &handle_state_update, NULL);
-    pthread_detach(state_thread);
-
-    pthread_create(&thread_pool[4], NULL, &Quit, NULL);
-    pthread_join(thread_pool[4], NULL);
-
-    close(endpoint);
-    for(int i=0;i<4;i++){
-        pthread_join(thread_pool[i], NULL);
-    }
-    return 0;
 }
 
-void* handle_connection(void* args){
-    int endpoint=*(int*)args;
-    int soc_desc[4];
-    int curr_clients=0;
-
-
-    listen(endpoint, 4);
-
-    while(1){
-        if(curr_clients < 4){
-            soc_desc[curr_clients] = accept(endpoint, (struct sockaddr*)NULL, NULL);
-        }else{
-            soc_desc[curr_clients]=-1;
-        }
-        if(soc_desc[curr_clients] >= 0){
-            pthread_create(&thread_pool[curr_clients], NULL, &handle_information_flow, &soc_desc[curr_clients]);
-            curr_clients++;
+int find_free(struct player_t clients[], int size){
+    for(int i=0;i<size;i++){
+        if(clients[i].socket_descriptor==-1){
+            return i;
         }
     }
-}
-
-void* handle_information_flow(void* args){
-    int soc_desc = *(int*)args;
-    int client_process_id;
-
-    recv(soc_desc, &client_process_id, sizeof(int), 0);
-    printf("Client of ID: %d connected to server\n", client_process_id);
-    send(soc_desc, &client_process_id, sizeof(int), 0);
-
-
-    while(1){
-        if(recv(soc_desc, &player_a, 1, 0)==0){
-            printf("Client of ID: %d has left\n", client_process_id);
-            *(int*)args=-1;
-            close(soc_desc);
-            break;
-        }
-        printf("Player has pressed: %c\n", player_a);
-    }
-    return NULL;
-}
-
-void* handle_state_update(void* args){
-    while(1){
-        printf("Player input: %c", player_a);
-        sleep(4);
-    }
-}
-
-void* display_server(void* args){
-
-}
-
-void* Quit(void* args){
-    char c;
-
-    while(1){
-        scanf("%c", &c);
-        if(c == 'Q' || c == 'q'){
-            return NULL;
-        }
-        sleep(1);
-    }
+    return -1;
 }

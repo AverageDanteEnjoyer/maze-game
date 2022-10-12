@@ -3,8 +3,4 @@
 //
 
 #include "player.h"
-#include <ncurses.h>
-
-void player_screen_display(struct player_t player){
-
-}
+#include <stdlib.h>

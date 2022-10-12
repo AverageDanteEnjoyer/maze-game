@@ -12,6 +12,6 @@ struct player_t{
     int c_brought;
     int deaths;
     struct board_t view;
+    int socket_descriptor;
 };
-void player_screen_display(struct player_t player);
 #endif //SO2_GAME_PLAYER_H

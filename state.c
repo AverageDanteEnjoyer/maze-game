@@ -4,18 +4,16 @@
 
 #include "state.h"
 #include <stdio.h>
-#include <ncurses.h>
 #include <unistd.h>
+#include "player.h"
 
 void init_state(struct state* st){
-    st->turn=0;
-    st->players_counter=0;
-    st->curr_board=board_create(51, 25);
+    st->curr_board=board_create(BOARD_WIDTH, BOARD_HEIGHT);
     struct square_t* squares=st->curr_board->squares;
     FILE* f=fopen("map.txt", "r");
     char c=0;
 
-    for(int i=0;!feof(f);i++){
+    for(int i=0;!feof(f) && i<BOARD_WIDTH*BOARD_HEIGHT ;i++){
         if(fscanf(f, "%c", &c)==-1){
             break;
         }
@@ -25,7 +23,9 @@ void init_state(struct state* st){
             i--;
         }
     }
-    st->players_counter=0;
+    for(int i=0;i<4;i++){
+        st->players[i].socket_descriptor=-1;
+    }
     st->turn=0;
     st->campsite.x=23;
     st->campsite.y=11;

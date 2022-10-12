@@ -38,9 +38,6 @@ int main(){
     int pid=getpid();
 
     send(endpoint, &pid, sizeof(int), 0);
-    recv(endpoint, &buff, 20, 0);
-    printf("%d\n", buff);
-
     struct board_t* main=board_create(4, 4);
 
     char opcja=' ';
@@ -54,6 +51,7 @@ int main(){
         }
         send(endpoint, &opcja, 1, 0);
     }
+    close(endpoint);
     board_destroy(&main);
     return 0;
 }
