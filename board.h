@@ -1,7 +1,3 @@
-//
-// Created by student on 11.10.2022.
-//
-
 #ifndef SO2_GAME_BOARD_H
 #define SO2_GAME_BOARD_H
 
@@ -16,6 +12,18 @@ enum object_type{
     T_COINS = 'T',
     DROP = 'D',
     CAMPSITE = 'A'
+};
+
+enum direction{
+    right = 5,
+    left = 4,
+    top = 3,
+    bot =2
+};
+
+enum entity_type{
+    player,
+    beast
 };
 
 struct point_t{

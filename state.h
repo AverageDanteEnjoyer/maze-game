@@ -18,5 +18,6 @@ struct state{
 
 void init_state(struct state* st);
 void destroy_state(struct state* st);
+void move_p(struct state* serv_state, struct player_t* player);
 
 #endif //SO2_GAME_STATE_H

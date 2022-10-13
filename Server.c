@@ -99,13 +99,18 @@ void* handle_information_flow(void* args){
            player_on_disconnect(speaker);
            break;
         }
-        printf("he said: %c\n", speaker->last_pressed_key);
     }
 }
 
 void* handle_state_update(void* args){
     while(1){
+        for(int i=0;i<4;i++){
+            if(serv_state.players[i].pid!=-1){
+                move_p(&serv_state, &serv_state.players[i]);
+            }
+        }
         update_screen(&serv_state);
+        serv_state.turn++;
         sleep(1);
     }
 }
@@ -243,6 +248,8 @@ void player_on_join(struct player_t* speaker){
     speaker->deaths=0;
     speaker->c_brought=0;
     speaker->c_found=0;
+    speaker->is_slowed_down=0;
+    speaker->last_object=AIR;
 
     while(1){
         speaker->spawn.x=(rand() % (BOARD_WIDTH-1)) + 1;
@@ -254,6 +261,7 @@ void player_on_join(struct player_t* speaker){
     speaker->position.x=speaker->spawn.x;
     speaker->position.y=speaker->spawn.y;
     serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].object=PLAYER;
+    serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].pid_or_coins=speaker->pid;
 
     recv(speaker->socket_descriptor, &speaker->pid, sizeof(int), 0);
 }
@@ -262,6 +270,7 @@ void player_on_disconnect(struct player_t* speaker){
         close(speaker->socket_descriptor);
     }
     serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].object=AIR;
+    serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].pid_or_coins=0;
     bzero(speaker, sizeof(struct player_t));
     speaker->pid=-1;
     speaker->socket_descriptor=-1;

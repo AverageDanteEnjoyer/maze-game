@@ -40,20 +40,21 @@ int main(){
     send(endpoint, &pid, sizeof(int), 0);
     struct board_t* main=board_create(4, 4);
 
-    char opcja=' ';
+    initscr();
+    keypad(stdscr, TRUE); //P-5, L-4, G-3, D-2;
+    char c;
     while(1){
-        printf("Wybierz opcje\n");
-        scanf("%c", &opcja);
-        while(getchar()!='\n');
-        if(opcja == 'Q'){
-            send(endpoint, &opcja, 1, 0);
+        c=getch();
+        if(c == 'Q'){
+            send(endpoint, &c, 1, 0);
             break;
         }
-        if(send(endpoint, &opcja, 1, 0)<=0){
+        if(send(endpoint, &c, 1, 0)<=0){
             break;
         }
     }
     close(endpoint);
     board_destroy(&main);
+    endwin();
     return 0;
 }

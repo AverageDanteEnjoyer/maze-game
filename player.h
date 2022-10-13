@@ -2,25 +2,23 @@
 #define SO2_GAME_PLAYER_H
 
 #include "board.h"
-
-enum entity_type{
-    player,
-    beast,
-};
+#include <stdlib.h>
 
 struct player_t{
     int pid;
     int socket_descriptor;
     enum entity_type type;
-
+    enum object_type last_object;
     char last_pressed_key;
 
     struct point_t spawn;
     struct point_t position;
     int c_found;
     int c_brought;
+    int is_slowed_down;
     int deaths;
 
     struct board_t view;
 };
+
 #endif //SO2_GAME_PLAYER_H
