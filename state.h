@@ -8,6 +8,7 @@
 #include "player.h"
 
 struct state{
+    int endpoint;
     int turn;
     struct board_t* curr_board;
     struct player_t players[4];

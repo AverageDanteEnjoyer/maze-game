@@ -6,12 +6,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include <time.h>
 #include <pthread.h>
-#include <errno.h>
-#include <ncurses.h>
 #include "state.h"
-#include <stdlib.h>
 
 #define TEXT_COLOR 1
 
@@ -21,10 +17,9 @@ pthread_t quit_thread;
 pthread_t connection_thread;
 
 char player_a=' ';
-struct state curr;
 
 int init_Server(char * ip){
-    int endpoint;
+    struct state curr;
     struct sockaddr_in serv_addr;
 
     initscr();
@@ -34,7 +29,7 @@ int init_Server(char * ip){
 
     init_state(&curr);
 
-    if((endpoint = socket(AF_INET, SOCK_STREAM, 0))< 0){
+    if((curr.endpoint = socket(AF_INET, SOCK_STREAM, 0))< 0){
         printf("Failed to create socket");
         destroy_state(&curr);
         endwin();
@@ -46,49 +41,50 @@ int init_Server(char * ip){
     serv_addr.sin_addr.s_addr = inet_addr(ip);
     serv_addr.sin_port = htons(8000);
 
-    if(bind(endpoint, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0){
+    if(bind(curr.endpoint, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0){
         printf("Failed to bind\n");
         destroy_state(&curr);
         endwin();
         return 1;
     }
 
-    listen(endpoint, 4);
-    pthread_create(&connection_thread, NULL, &handle_connection, &endpoint);
+    listen(curr.endpoint, 4);
+    pthread_create(&connection_thread, NULL, &handle_connection, &curr);
     pthread_detach(connection_thread);
 
-    pthread_create(&state_thread, NULL, &handle_state_update, NULL);
+    pthread_create(&state_thread, NULL, &handle_state_update, &curr);
     pthread_detach(state_thread);
 
     pthread_create(&quit_thread, NULL, &Quit, NULL);
     pthread_join(quit_thread, NULL);
 
-    close(endpoint);
-
     for(int i=0;i<4;i++){
-       if(curr.players[i].socket_descriptor!=-1){
-           close(curr.players[i].socket_descriptor);
-       }
+        if(curr.players[i].socket_descriptor!=-1){
+            close(curr.players[i].socket_descriptor);
+            curr.players[i].socket_descriptor=-1;
+        }
     }
+    close(curr.endpoint);
+
     destroy_state(&curr);
     endwin();
     return 0;
 }
 
 void* handle_connection(void* args){
-    int endpoint=*(int*)args;
+    struct state* curr=(struct state*)args;
     int soc_desc;
 
     while(1){
-        soc_desc = accept(endpoint, (struct sockaddr*)NULL, NULL);
+        soc_desc = accept(curr->endpoint, (struct sockaddr*)NULL, NULL);
         if(soc_desc!=-1){
-            int free_index=find_free(curr.players, 4);
+            int free_index=find_free(curr->players, 4);
             if(free_index==-1){
-                close(endpoint);
+                close(soc_desc);
                 continue;
             }
-            curr.players[free_index].socket_descriptor=soc_desc;
-            pthread_create(&thread_pool[free_index], NULL, &handle_information_flow, &curr.players[free_index]);
+            curr->players[free_index].socket_descriptor=soc_desc;
+            pthread_create(&thread_pool[free_index], NULL, &handle_information_flow, &curr->players[free_index]);
             pthread_detach(thread_pool[free_index]);
         }
     }
@@ -96,27 +92,30 @@ void* handle_connection(void* args){
 
 void* handle_information_flow(void* args){
     struct player_t* speaker=(struct player_t*)args;
-    int soc_desc = speaker->socket_descriptor;
 
 
-    recv(soc_desc, &speaker->pid, sizeof(int), 0);
+    recv(speaker->socket_descriptor, &speaker->pid, sizeof(int), 0);
     speaker->deaths=0;
     speaker->last_pressed_key='\0';
     printf("Client of ID: %d connected to server\n", speaker->pid);
 
     while(1){
-        if(recv(soc_desc, &player_a, 1, 0)==0){
+        if(recv(speaker->socket_descriptor, &player_a, 1, 0)<=0){
             printf("\nClient of ID: %d has left\n", speaker->pid);
-            close(soc_desc);
+            if(speaker->socket_descriptor!=-1){
+                close(speaker->socket_descriptor);
+            }
             speaker->socket_descriptor=-1;
             break;
         }
+        printf("he said: %c\n", player_a);
     }
 }
 
 void* handle_state_update(void* args){
+    struct state* curr=(struct state*)args;
     while(1){
-        update_screen();
+        update_screen(curr);
         sleep(1);
     }
 }
@@ -145,9 +144,9 @@ void init_colors(){
     init_pair(PLAYER, COLOR_WHITE, COLOR_BLUE);
     init_pair(BEAST, COLOR_RED, COLOR_BLACK);
 }
-void update_screen(){
+void update_screen(struct state* curr){
     move(0, 0);
-    struct square_t* sq=curr.curr_board->squares;
+    struct square_t* sq=curr->curr_board->squares;
     for(int i=0;i<BOARD_WIDTH*BOARD_HEIGHT;i++){
         if(i%BOARD_WIDTH==0){
             printw("\n");
@@ -158,9 +157,9 @@ void update_screen(){
     }
 
     attron(COLOR_PAIR(TEXT_COLOR));
-    mvprintw(2, 58, "Server's PID: %d", curr.server_pid);
-    mvprintw(3, 59, "Campsite X/Y: %d/%d", curr.campsite.x, curr.campsite.y);
-    mvprintw(4, 59, "Round number: %d", curr.turn);
+    mvprintw(2, 58, "Server's PID: %d", curr->server_pid);
+    mvprintw(3, 59, "Campsite X/Y: %d/%d", curr->campsite.x, curr->campsite.y);
+    mvprintw(4, 59, "Round number: %d", curr->turn);
 
     mvprintw(6, 58, "Parameter: ");
     //...
@@ -210,7 +209,6 @@ void update_screen(){
     mvprintw(22, 89, "D");
     attron(COLOR_PAIR(TEXT_COLOR));
     printw(" - dropped treasure");
-
     refresh();
 }
 

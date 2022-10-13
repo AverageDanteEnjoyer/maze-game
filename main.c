@@ -46,10 +46,12 @@ int main(){
         scanf("%c", &opcja);
         while(getchar()!='\n');
         if(opcja == 'Q'){
-            close(endpoint);
+            send(endpoint, &opcja, 1, 0);
             break;
         }
-        send(endpoint, &opcja, 1, 0);
+        if(send(endpoint, &opcja, 1, 0)<=0){
+            break;
+        }
     }
     close(endpoint);
     board_destroy(&main);
