@@ -25,6 +25,7 @@ void init_state(struct state* st){
     }
     for(int i=0;i<4;i++){
         st->players[i].socket_descriptor=-1;
+        st->players[i].pid=-1;
     }
     st->turn=0;
     st->campsite.x=23;

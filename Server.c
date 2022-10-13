@@ -8,6 +8,8 @@
 #include <string.h>
 #include <pthread.h>
 #include "state.h"
+#include <time.h>
+#include <stdlib.h>
 
 #define TEXT_COLOR 1
 
@@ -15,11 +17,10 @@ pthread_t thread_pool[4];
 pthread_t state_thread;
 pthread_t quit_thread;
 pthread_t connection_thread;
-
-char player_a=' ';
+struct state serv_state;
 
 int init_Server(char * ip){
-    struct state curr;
+    srand(time(NULL));
     struct sockaddr_in serv_addr;
 
     initscr();
@@ -27,11 +28,11 @@ int init_Server(char * ip){
     init_colors();
     noecho();
 
-    init_state(&curr);
+    init_state(&serv_state);
 
-    if((curr.endpoint = socket(AF_INET, SOCK_STREAM, 0))< 0){
+    if((serv_state.endpoint = socket(AF_INET, SOCK_STREAM, 0))< 0){
         printf("Failed to create socket");
-        destroy_state(&curr);
+        destroy_state(&serv_state);
         endwin();
         return 1;
     }
@@ -41,50 +42,49 @@ int init_Server(char * ip){
     serv_addr.sin_addr.s_addr = inet_addr(ip);
     serv_addr.sin_port = htons(8000);
 
-    if(bind(curr.endpoint, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0){
+    if(bind(serv_state.endpoint, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0){
         printf("Failed to bind\n");
-        destroy_state(&curr);
+        destroy_state(&serv_state);
         endwin();
         return 1;
     }
 
-    listen(curr.endpoint, 4);
-    pthread_create(&connection_thread, NULL, &handle_connection, &curr);
+    listen(serv_state.endpoint, 4);
+    pthread_create(&connection_thread, NULL, &handle_connection, NULL);
     pthread_detach(connection_thread);
 
-    pthread_create(&state_thread, NULL, &handle_state_update, &curr);
+    pthread_create(&state_thread, NULL, &handle_state_update, NULL);
     pthread_detach(state_thread);
 
     pthread_create(&quit_thread, NULL, &Quit, NULL);
     pthread_join(quit_thread, NULL);
 
     for(int i=0;i<4;i++){
-        if(curr.players[i].socket_descriptor!=-1){
-            close(curr.players[i].socket_descriptor);
-            curr.players[i].socket_descriptor=-1;
+        if(serv_state.players[i].socket_descriptor!=-1){
+            close(serv_state.players[i].socket_descriptor);
+            serv_state.players[i].socket_descriptor=-1;
         }
     }
-    close(curr.endpoint);
+    close(serv_state.endpoint);
 
-    destroy_state(&curr);
+    destroy_state(&serv_state);
     endwin();
     return 0;
 }
 
 void* handle_connection(void* args){
-    struct state* curr=(struct state*)args;
     int soc_desc;
-
     while(1){
-        soc_desc = accept(curr->endpoint, (struct sockaddr*)NULL, NULL);
+        soc_desc = accept(serv_state.endpoint, (struct sockaddr*)NULL, NULL);
         if(soc_desc!=-1){
-            int free_index=find_free(curr->players, 4);
+            int free_index=find_free(serv_state.players, 4);
             if(free_index==-1){
                 close(soc_desc);
                 continue;
             }
-            curr->players[free_index].socket_descriptor=soc_desc;
-            pthread_create(&thread_pool[free_index], NULL, &handle_information_flow, &curr->players[free_index]);
+            serv_state.players[free_index].socket_descriptor=soc_desc;
+            serv_state.players[free_index].type=player;
+            pthread_create(&thread_pool[free_index], NULL, &handle_information_flow, &serv_state.players[free_index]);
             pthread_detach(thread_pool[free_index]);
         }
     }
@@ -92,30 +92,20 @@ void* handle_connection(void* args){
 
 void* handle_information_flow(void* args){
     struct player_t* speaker=(struct player_t*)args;
-
-
-    recv(speaker->socket_descriptor, &speaker->pid, sizeof(int), 0);
-    speaker->deaths=0;
-    speaker->last_pressed_key='\0';
-    printf("Client of ID: %d connected to server\n", speaker->pid);
+    player_on_join(speaker);
 
     while(1){
-        if(recv(speaker->socket_descriptor, &player_a, 1, 0)<=0){
-            printf("\nClient of ID: %d has left\n", speaker->pid);
-            if(speaker->socket_descriptor!=-1){
-                close(speaker->socket_descriptor);
-            }
-            speaker->socket_descriptor=-1;
-            break;
+        if(recv(speaker->socket_descriptor, &speaker->last_pressed_key, 1, 0)<=0){
+           player_on_disconnect(speaker);
+           break;
         }
-        printf("he said: %c\n", player_a);
+        printf("he said: %c\n", speaker->last_pressed_key);
     }
 }
 
 void* handle_state_update(void* args){
-    struct state* curr=(struct state*)args;
     while(1){
-        update_screen(curr);
+        update_screen(&serv_state);
         sleep(1);
     }
 }
@@ -144,9 +134,9 @@ void init_colors(){
     init_pair(PLAYER, COLOR_WHITE, COLOR_BLUE);
     init_pair(BEAST, COLOR_RED, COLOR_BLACK);
 }
-void update_screen(struct state* curr){
+void update_screen(struct state* st){
     move(0, 0);
-    struct square_t* sq=curr->curr_board->squares;
+    struct square_t* sq=st->curr_board->squares;
     for(int i=0;i<BOARD_WIDTH*BOARD_HEIGHT;i++){
         if(i%BOARD_WIDTH==0){
             printw("\n");
@@ -157,11 +147,39 @@ void update_screen(struct state* curr){
     }
 
     attron(COLOR_PAIR(TEXT_COLOR));
-    mvprintw(2, 58, "Server's PID: %d", curr->server_pid);
-    mvprintw(3, 59, "Campsite X/Y: %d/%d", curr->campsite.x, curr->campsite.y);
-    mvprintw(4, 59, "Round number: %d", curr->turn);
+    mvprintw(2, 58, "Server's PID: %d", st->server_pid);
+    mvprintw(3, 59, "Campsite X/Y: %d/%d", st->campsite.x, st->campsite.y);
+    mvprintw(4, 59, "Round number: %d", st->turn);
 
     mvprintw(6, 58, "Parameter: ");
+    mvprintw(7, 59, "PID");
+    mvprintw(8, 59, "Type");
+    mvprintw(9, 59, "Curr X/Y");
+    mvprintw(10, 59, "Deaths");
+    mvprintw(13, 59, "Coins");
+    mvprintw(14, 63, "carried");
+    mvprintw(15, 63, "brought");
+
+    for(int i=0;i<4;i++){
+        struct player_t curr_player = serv_state.players[i];
+        mvprintw(6, 74+i*10, "Player%d", (i+1));
+        if(curr_player.pid!=-1){
+            mvprintw(7, 74+i*10, "%d", curr_player.pid);
+            mvprintw(8, 74+i*10, "HUMAN");
+            mvprintw(9, 74+i*10, "%d/%d", curr_player.spawn.x, curr_player.spawn.y);
+            mvprintw(10, 74+i*10, "%d", curr_player.deaths);
+            mvprintw(14, 74+i*10, "%d", curr_player.c_found);
+            mvprintw(15, 74+i*10, "%d", curr_player.c_brought);
+            attron(COLOR_PAIR(PLAYER));
+            mvprintw(curr_player.position.y+1, curr_player.position.x, "%d", i+1);
+            attron(COLOR_PAIR(TEXT_COLOR));
+        }else{
+            mvprintw(7, 74+i*10, "-");
+            mvprintw(8, 74+i*10, "-");
+            mvprintw(9, 74+i*10, "-/-");
+            mvprintw(10, 74+i*10, "-");
+        }
+    }
     //...
 
     mvprintw(17, 58, "Legend: ");
@@ -219,4 +237,32 @@ int find_free(struct player_t clients[], int size){
         }
     }
     return -1;
+}
+void player_on_join(struct player_t* speaker){
+    speaker->last_pressed_key='\0';
+    speaker->deaths=0;
+    speaker->c_brought=0;
+    speaker->c_found=0;
+
+    while(1){
+        speaker->spawn.x=(rand() % (BOARD_WIDTH-1)) + 1;
+        speaker->spawn.y=(rand() % (BOARD_HEIGHT-1)) + 1;
+        if(serv_state.curr_board->squares[speaker->spawn.y*BOARD_WIDTH+speaker->spawn.x].object==AIR){
+            break;
+        }
+    }
+    speaker->position.x=speaker->spawn.x;
+    speaker->position.y=speaker->spawn.y;
+    serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].object=PLAYER;
+
+    recv(speaker->socket_descriptor, &speaker->pid, sizeof(int), 0);
+}
+void player_on_disconnect(struct player_t* speaker){
+    if(speaker->socket_descriptor!=-1){
+        close(speaker->socket_descriptor);
+    }
+    serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].object=AIR;
+    bzero(speaker, sizeof(struct player_t));
+    speaker->pid=-1;
+    speaker->socket_descriptor=-1;
 }
