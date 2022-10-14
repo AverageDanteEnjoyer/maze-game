@@ -45,7 +45,7 @@ int main(){
     char c;
     while(1){
         c=getch();
-        if(c == 'Q'){
+        if(c == 'q' || c == 'Q'){
             send(endpoint, &c, 1, 0);
             break;
         }

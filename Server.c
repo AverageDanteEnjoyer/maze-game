@@ -11,6 +11,8 @@
 #include <time.h>
 #include <stdlib.h>
 
+pthread_mutex_t prevent_validate_disrupt;
+
 #define TEXT_COLOR 1
 
 pthread_t thread_pool[4];
@@ -50,6 +52,8 @@ int init_Server(char * ip){
     }
 
     listen(serv_state.endpoint, 4);
+
+    pthread_mutex_init(&prevent_validate_disrupt, NULL);
     pthread_create(&connection_thread, NULL, &handle_connection, NULL);
     pthread_detach(connection_thread);
 
@@ -59,6 +63,7 @@ int init_Server(char * ip){
     pthread_create(&quit_thread, NULL, &Quit, NULL);
     pthread_join(quit_thread, NULL);
 
+    pthread_mutex_destroy(&prevent_validate_disrupt);
     for(int i=0;i<4;i++){
         if(serv_state.players[i].socket_descriptor!=-1){
             close(serv_state.players[i].socket_descriptor);
@@ -94,16 +99,24 @@ void* handle_information_flow(void* args){
     struct player_t* speaker=(struct player_t*)args;
     player_on_join(speaker);
 
+    char key_pressed=0;
+    int recv_size=0;
     while(1){
-        if(recv(speaker->socket_descriptor, &speaker->last_pressed_key, 1, 0)<=0){
-           player_on_disconnect(speaker);
+        recv_size=recv(speaker->socket_descriptor, &key_pressed, 1, 0);
+        pthread_mutex_lock(&prevent_validate_disrupt);
+        if(recv_size<=0){
+            player_on_disconnect(speaker);
+            pthread_mutex_unlock(&prevent_validate_disrupt);
            break;
         }
+        speaker->last_pressed_key=key_pressed;
+        pthread_mutex_unlock(&prevent_validate_disrupt);
     }
 }
 
 void* handle_state_update(void* args){
     while(1){
+        pthread_mutex_lock(&prevent_validate_disrupt);
         for(int i=0;i<4;i++){
             if(serv_state.players[i].pid!=-1){
                 move_p(&serv_state, &serv_state.players[i]);
@@ -111,7 +124,8 @@ void* handle_state_update(void* args){
         }
         update_screen(&serv_state);
         serv_state.turn++;
-        sleep(1);
+        pthread_mutex_unlock(&prevent_validate_disrupt);
+        usleep(500000);
     }
 }
 
