@@ -1,9 +1,6 @@
 #ifndef SO2_GAME_STATE_H
 #define SO2_GAME_STATE_H
 
-#define BOARD_WIDTH 51
-#define BOARD_HEIGHT 25
-
 #include "board.h"
 #include "player.h"
 
@@ -16,7 +13,7 @@ struct state{
     int server_pid;
 };
 
-void init_state(struct state* st);
+int init_state(struct state* st);
 void destroy_state(struct state* st);
 void move_p(struct state* serv_state, struct player_t* player);
 

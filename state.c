@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include "player.h"
 
-void init_state(struct state* st){
+int init_state(struct state* st){
     st->curr_board=board_create(BOARD_WIDTH, BOARD_HEIGHT);
     struct square_t* squares=st->curr_board->squares;
     FILE* f=fopen("map.txt", "r");
@@ -32,13 +32,15 @@ void init_state(struct state* st){
     st->campsite.y=11;
     st->server_pid=getpid();
     fclose(f);
+
+    return 0;
 }
 void destroy_state(struct state* st){
     board_destroy(&(st->curr_board));
 }
 
 void move_p(struct state* serv_state, struct player_t* player){
-    int direction=player->last_pressed_key;
+    int direction=(int)player->last_pressed_key;
     struct square_t* destination;
     struct square_t* curr_square=&serv_state->curr_board->squares[player->position.y*BOARD_WIDTH+player->position.x];
 

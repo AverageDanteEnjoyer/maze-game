@@ -8,4 +8,4 @@ add_executable(SO2_Game main.c Server.c Server.h state.c state.h board.c board.h
 find_package(Curses REQUIRED)
 find_package(Threads REQUIRED)
 target_include_directories(SO2_Game PRIVATE ${CURSES_INCLUDE_DIRS} )
-target_link_libraries(SO2_Game PRIVATE ${CURSES_LIBRARIES} PRIVATE Threads::Threads)
+target_link_libraries(SO2_Game PRIVATE ${CURSES_LIBRARIES} PRIVATE Threads::Threads m)

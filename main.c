@@ -34,6 +34,8 @@ int main(){
     int pid=getpid();
 
     initscr();
+    start_color();
+    init_colors();
 
     if(send(endpoint, &pid, sizeof(int), 0) > 0){
         pthread_create(&t1, NULL, &listen_s, &endpoint);

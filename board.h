@@ -1,6 +1,9 @@
 #ifndef SO2_GAME_BOARD_H
 #define SO2_GAME_BOARD_H
 
+#define BOARD_WIDTH 51
+#define BOARD_HEIGHT 25
+
 enum object_type{
     BUSHES = '#',
     AIR = ' ',

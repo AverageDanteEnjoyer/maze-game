@@ -107,7 +107,7 @@ void* listen_to_client(void* args){
         if(recv_size<=0){
             player_on_disconnect(speaker);
             pthread_mutex_unlock(&prevent_validate_disrupt);
-           break;
+            break;
         }
         speaker->last_pressed_key=key_pressed;
         pthread_mutex_unlock(&prevent_validate_disrupt);
@@ -115,7 +115,6 @@ void* listen_to_client(void* args){
 }
 
 void* handle_state_update(void* args){
-    struct player_info players_data[4];
     while(1){
         pthread_mutex_lock(&prevent_validate_disrupt);
         for(int i=0;i<4;i++){
@@ -127,11 +126,19 @@ void* handle_state_update(void* args){
         serv_state.turn++;
         for(int i=0;i<4;i++){
             if(serv_state.players[i].pid!=-1){
-                players_data[i].number=i+1;
-                players_data[i].c_found=serv_state.players[i].c_found;
-                players_data[i].c_brought=serv_state.players[i].c_brought;
-                players_data[i].deaths=serv_state.players[i].deaths;
-                send(serv_state.players[i].socket_descriptor, &players_data[i], sizeof(struct player_info), 0);
+
+                serv_state.players[i].info.number=i+1;
+                serv_state.players[i].info.c_found=serv_state.players[i].c_found;
+                serv_state.players[i].info.c_brought=serv_state.players[i].c_brought;
+                serv_state.players[i].info.deaths=serv_state.players[i].deaths;
+                serv_state.players[i].info.round=serv_state.turn;
+                serv_state.players[i].info.server_pid=serv_state.server_pid;
+                serv_state.players[i].info.position.x=serv_state.players[i].position.x;
+                serv_state.players[i].info.position.y=serv_state.players[i].position.y;
+
+                init_player_view(&serv_state.players[i], serv_state.curr_board);
+
+                send(serv_state.players[i].socket_descriptor, &serv_state.players[i].info, sizeof(struct player_info), 0);
             }
         }
         pthread_mutex_unlock(&prevent_validate_disrupt);
