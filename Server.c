@@ -125,20 +125,21 @@ void* handle_state_update(void* args){
         update_screen(&serv_state);
         serv_state.turn++;
         for(int i=0;i<4;i++){
+            struct player_info info;
             if(serv_state.players[i].pid!=-1){
 
-                serv_state.players[i].info.number=i+1;
-                serv_state.players[i].info.c_found=serv_state.players[i].c_found;
-                serv_state.players[i].info.c_brought=serv_state.players[i].c_brought;
-                serv_state.players[i].info.deaths=serv_state.players[i].deaths;
-                serv_state.players[i].info.round=serv_state.turn;
-                serv_state.players[i].info.server_pid=serv_state.server_pid;
-                serv_state.players[i].info.position.x=serv_state.players[i].position.x;
-                serv_state.players[i].info.position.y=serv_state.players[i].position.y;
+                info.number=i+1;
+                info.c_found=serv_state.players[i].c_found;
+                info.c_brought=serv_state.players[i].c_brought;
+                info.deaths=serv_state.players[i].deaths;
+                info.round=serv_state.turn;
+                info.server_pid=serv_state.server_pid;
+                info.position.x=serv_state.players[i].position.x;
+                info.position.y=serv_state.players[i].position.y;
 
-                init_player_view(&serv_state.players[i], serv_state.curr_board);
+                init_player_view(&serv_state.players[i], &info, serv_state.curr_board);
 
-                send(serv_state.players[i].socket_descriptor, &serv_state.players[i].info, sizeof(struct player_info), 0);
+                send(serv_state.players[i].socket_descriptor, &info, sizeof(struct player_info), 0);
             }
         }
         pthread_mutex_unlock(&prevent_validate_disrupt);

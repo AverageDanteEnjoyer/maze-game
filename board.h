@@ -14,7 +14,8 @@ enum object_type{
     t_COINS = 't',
     T_COINS = 'T',
     DROP = 'D',
-    CAMPSITE = 'A'
+    CAMPSITE = 'A',
+    VOID = 'V'
 };
 
 enum direction{

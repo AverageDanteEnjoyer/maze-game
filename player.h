@@ -20,8 +20,6 @@ struct player_t{
     int pid;
     int socket_descriptor;
 
-    struct player_info info;
-
     enum entity_type type;
     enum object_type last_object;
     char last_pressed_key;
@@ -35,6 +33,6 @@ struct player_t{
     int deaths;
 };
 
-void init_player_view(struct player_t* player, struct board_t* board);
+void init_player_view(struct player_t* player, struct player_info* info, struct board_t* board);
 
 #endif //SO2_GAME_PLAYER_H

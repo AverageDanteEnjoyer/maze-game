@@ -19,6 +19,8 @@ void* send_s(void* args){
     char c;
 
     keypad(stdscr, TRUE);
+    curs_set(0);
+
     timeout(500);
 
     while(1){
@@ -35,7 +37,7 @@ void* send_s(void* args){
 }
 
 void client_update_screen(struct player_info* info){
-    move(0, 0);
+    clear();
     struct square_t* sq=info->view;
     for(int i=0;i<BOARD_WIDTH*BOARD_HEIGHT-1;i++){
         if(i%BOARD_WIDTH==0){
@@ -117,5 +119,4 @@ void client_update_screen(struct player_info* info){
     mvprintw(22, 89, "D");
     attron(COLOR_PAIR(TEXT_COLOR));
     printw(" - dropped treasure");
-    refresh();
 }
