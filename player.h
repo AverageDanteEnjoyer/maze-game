@@ -17,8 +17,14 @@ struct player_t{
     int c_brought;
     int is_slowed_down;
     int deaths;
+};
 
-    struct board_t view;
+struct player_info{
+    int number;
+    struct board_t* view;
+    int c_found;
+    int c_brought;
+    int deaths;
 };
 
 #endif //SO2_GAME_PLAYER_H

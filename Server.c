@@ -89,13 +89,13 @@ void* handle_connection(void* args){
             }
             serv_state.players[free_index].socket_descriptor=soc_desc;
             serv_state.players[free_index].type=player;
-            pthread_create(&thread_pool[free_index], NULL, &handle_information_flow, &serv_state.players[free_index]);
+            pthread_create(&thread_pool[free_index], NULL, &listen_to_client, &serv_state.players[free_index]);
             pthread_detach(thread_pool[free_index]);
         }
     }
 }
 
-void* handle_information_flow(void* args){
+void* listen_to_client(void* args){
     struct player_t* speaker=(struct player_t*)args;
     player_on_join(speaker);
 
@@ -115,6 +115,7 @@ void* handle_information_flow(void* args){
 }
 
 void* handle_state_update(void* args){
+    struct player_info players_data[4];
     while(1){
         pthread_mutex_lock(&prevent_validate_disrupt);
         for(int i=0;i<4;i++){
@@ -124,6 +125,15 @@ void* handle_state_update(void* args){
         }
         update_screen(&serv_state);
         serv_state.turn++;
+        for(int i=0;i<4;i++){
+            if(serv_state.players[i].pid!=-1){
+                players_data[i].number=i+1;
+                players_data[i].c_found=serv_state.players[i].c_found;
+                players_data[i].c_brought=serv_state.players[i].c_brought;
+                players_data[i].deaths=serv_state.players[i].deaths;
+                send(serv_state.players[i].socket_descriptor, &players_data[i], sizeof(struct player_info), 0);
+            }
+        }
         pthread_mutex_unlock(&prevent_validate_disrupt);
         usleep(500000);
     }

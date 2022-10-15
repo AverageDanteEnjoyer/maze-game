@@ -1,16 +1,14 @@
-#include <ncurses.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
 #include <string.h>
 #include "Server.h"
-#include "board.h"
-#include "state.h"
+#include "Client.h"
+#include <pthread.h>
 
 int main(){
+    pthread_t t1, t2;
     int endpoint = 0;
     char ip[]="127.0.0.1";
     struct sockaddr_in serv_addr;
@@ -33,28 +31,19 @@ int main(){
         init_Server(ip);
         return 0;
     }
-
-    int buff;
     int pid=getpid();
 
-    send(endpoint, &pid, sizeof(int), 0);
-    struct board_t* main=board_create(4, 4);
-
     initscr();
-    keypad(stdscr, TRUE); //P-5, L-4, G-3, D-2;
-    char c;
-    while(1){
-        c=getch();
-        if(c == 'q' || c == 'Q'){
-            send(endpoint, &c, 1, 0);
-            break;
-        }
-        if(send(endpoint, &c, 1, 0)<=0){
-            break;
-        }
+
+    if(send(endpoint, &pid, sizeof(int), 0) > 0){
+        pthread_create(&t1, NULL, &listen_s, &endpoint);
     }
+    pthread_create(&t2, NULL, &send_s, &endpoint);
+
+    pthread_join(t2, NULL);
     close(endpoint);
-    board_destroy(&main);
+    pthread_join(t1, NULL);
+
     endwin();
     return 0;
 }

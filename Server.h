@@ -6,7 +6,7 @@
 
 int init_Server(char* ip);
 void* handle_connection(void*);
-void* handle_information_flow(void* args);
+void* listen_to_client(void* args);
 void* Quit(void* args);
 void* handle_state_update(void* args);
 void init_colors();
