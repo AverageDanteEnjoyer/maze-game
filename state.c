@@ -3,9 +3,6 @@
 //
 
 #include "state.h"
-#include <stdio.h>
-#include <unistd.h>
-#include "player.h"
 
 int init_state(struct state* st){
     st->curr_board=board_create(BOARD_WIDTH, BOARD_HEIGHT);
@@ -69,6 +66,9 @@ void move_p(struct state* serv_state, struct player_t* player){
             player->c_found=player->c_found+10;
         }else if(destination->object==T_COINS){
             player->c_found=player->c_found+50;
+        }else if(destination->object==DROP){
+            player->c_found=player->c_found+destination->pnumber_or_coins;
+            destination->pnumber_or_coins=0;
         }
 
         if(destination->object==BUSHES){
@@ -80,7 +80,7 @@ void move_p(struct state* serv_state, struct player_t* player){
         }
 
         curr_square->object=player->last_object;
-        curr_square->pid_or_coins=0;
+        curr_square->pnumber_or_coins=0;
         if(destination->object == CAMPSITE || destination->object == BUSHES){
             player->last_object=destination->object;
         }else{
@@ -88,25 +88,25 @@ void move_p(struct state* serv_state, struct player_t* player){
         }
 
         destination->object = PLAYER;
-        destination->pid_or_coins=player->pid;
+        destination->pnumber_or_coins=player->number;
 
         player->position.x = destination->cords.x;
         player->position.y = destination->cords.y;
     }else if(destination->object==PLAYER){
         struct player_t* killed_player;
         for(int i=0;i<4;i++){
-            if(serv_state->players[i].pid==destination->pid_or_coins){
+            if(serv_state->players[i].number==destination->pnumber_or_coins){
                 killed_player=&serv_state->players[i];
             }
         }
         destination->object=DROP;
-        destination->pid_or_coins=player->c_found+killed_player->c_found;
+        destination->pnumber_or_coins=player->c_found+killed_player->c_found;
 
         player->c_found=0;
         killed_player->c_found=0;
 
         curr_square->object=player->last_object;
-        curr_square->pid_or_coins=0;
+        curr_square->pnumber_or_coins=0;
 
         player->last_object=AIR;
         killed_player->last_object=AIR;
@@ -117,8 +117,8 @@ void move_p(struct state* serv_state, struct player_t* player){
         killed_player->position.y=killed_player->spawn.y;
 
         serv_state->curr_board->squares[player->spawn.y*BOARD_WIDTH+player->spawn.x].object=PLAYER;
-        serv_state->curr_board->squares[player->spawn.y*BOARD_WIDTH+player->spawn.x].pid_or_coins=player->pid;
+        serv_state->curr_board->squares[player->spawn.y*BOARD_WIDTH+player->spawn.x].pnumber_or_coins=player->number;
         serv_state->curr_board->squares[killed_player->spawn.y*BOARD_WIDTH+killed_player->spawn.x].object=PLAYER;
-        serv_state->curr_board->squares[killed_player->spawn.y*BOARD_WIDTH+killed_player->spawn.x].pid_or_coins=killed_player->pid;
+        serv_state->curr_board->squares[killed_player->spawn.y*BOARD_WIDTH+killed_player->spawn.x].pnumber_or_coins=killed_player->number;
     }
 }

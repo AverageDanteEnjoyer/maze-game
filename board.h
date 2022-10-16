@@ -37,7 +37,7 @@ struct point_t{
 struct square_t{
     struct point_t cords;
     enum object_type object;
-    int pid_or_coins;
+    int pnumber_or_coins;
 
 };
 struct board_t{

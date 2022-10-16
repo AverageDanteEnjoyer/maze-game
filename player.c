@@ -1,7 +1,3 @@
-//
-// Created by student on 11.10.2022.
-//
-
 #include "player.h"
 
 void init_player_view(struct player_t* player, struct player_info* info, struct board_t* board){
@@ -16,7 +12,7 @@ void init_player_view(struct player_t* player, struct player_info* info, struct 
             info->view[i].object=0;
         }else{
             info->view[i].object=board->squares[i].object;
-            info->view[i].pid_or_coins=board->squares[i].pid_or_coins;
+            info->view[i].pnumber_or_coins=board->squares[i].pnumber_or_coins;
         }
     }
 }

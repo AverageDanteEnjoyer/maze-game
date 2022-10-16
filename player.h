@@ -18,6 +18,7 @@ struct player_info{
 
 struct player_t{
     int pid;
+    int number;
     int socket_descriptor;
 
     enum entity_type type;

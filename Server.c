@@ -97,20 +97,30 @@ void* handle_connection(void* args){
 
 void* listen_to_client(void* args){
     struct player_t* speaker=(struct player_t*)args;
-    player_on_join(speaker);
+    int player_number;
+
+    for(int i=0;i<4;i++){
+        if(speaker == &serv_state.players[i]){
+            player_number=i;
+        }
+    }
+    pthread_mutex_lock(&prevent_validate_disrupt);
+    player_on_join(player_number);
+    pthread_mutex_unlock(&prevent_validate_disrupt);
 
     char key_pressed=0;
     int recv_size=0;
     while(1){
         recv_size=recv(speaker->socket_descriptor, &key_pressed, 1, 0);
-        pthread_mutex_lock(&prevent_validate_disrupt);
         if(recv_size<=0){
-            player_on_disconnect(speaker);
+
+            pthread_mutex_lock(&prevent_validate_disrupt);
+            player_on_disconnect(player_number);
             pthread_mutex_unlock(&prevent_validate_disrupt);
+
             break;
         }
         speaker->last_pressed_key=key_pressed;
-        pthread_mutex_unlock(&prevent_validate_disrupt);
     }
 }
 
@@ -128,7 +138,7 @@ void* handle_state_update(void* args){
             struct player_info info;
             if(serv_state.players[i].pid!=-1){
 
-                info.number=i+1;
+                info.number=serv_state.players[i].number;
                 info.c_found=serv_state.players[i].c_found;
                 info.c_brought=serv_state.players[i].c_brought;
                 info.deaths=serv_state.players[i].deaths;
@@ -179,7 +189,11 @@ void update_screen(struct state* st){
             printw("\n");
         }
         attron(COLOR_PAIR(sq[i].object));
-        printw("%c", sq[i].object);
+        if(sq[i].object==PLAYER){
+            printw("%d", sq[i].pnumber_or_coins);
+        }else{
+            printw("%c", sq[i].object);
+        }
         attroff(COLOR_PAIR(sq[i].object));
     }
 
@@ -207,9 +221,6 @@ void update_screen(struct state* st){
             mvprintw(10, 74+i*10, "%d", curr_player.deaths);
             mvprintw(14, 74+i*10, "%d", curr_player.c_found);
             mvprintw(15, 74+i*10, "%d", curr_player.c_brought);
-            attron(COLOR_PAIR(PLAYER));
-            mvprintw(curr_player.position.y+1, curr_player.position.x, "%d", i+1);
-            attron(COLOR_PAIR(TEXT_COLOR));
         }else{
             mvprintw(7, 74+i*10, "-");
             mvprintw(8, 74+i*10, "-");
@@ -275,7 +286,9 @@ int find_free(struct player_t clients[], int size){
     }
     return -1;
 }
-void player_on_join(struct player_t* speaker){
+void player_on_join(int player_number){
+    struct player_t* speaker=&serv_state.players[player_number];
+    speaker->number=player_number+1;
     speaker->last_pressed_key='\0';
     speaker->deaths=0;
     speaker->c_brought=0;
@@ -293,16 +306,17 @@ void player_on_join(struct player_t* speaker){
     speaker->position.x=speaker->spawn.x;
     speaker->position.y=speaker->spawn.y;
     serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].object=PLAYER;
-    serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].pid_or_coins=speaker->pid;
+    serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].pnumber_or_coins=speaker->number;
 
     recv(speaker->socket_descriptor, &speaker->pid, sizeof(int), 0);
 }
-void player_on_disconnect(struct player_t* speaker){
+void player_on_disconnect(int player_number){
+    struct player_t* speaker=&serv_state.players[player_number];
     if(speaker->socket_descriptor!=-1){
         close(speaker->socket_descriptor);
     }
     serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].object=AIR;
-    serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].pid_or_coins=0;
+    serv_state.curr_board->squares[speaker->position.y*BOARD_WIDTH+speaker->position.x].pnumber_or_coins=0;
     bzero(speaker, sizeof(struct player_t));
     speaker->pid=-1;
     speaker->socket_descriptor=-1;

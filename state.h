@@ -2,6 +2,8 @@
 #define SO2_GAME_STATE_H
 
 #include "board.h"
+#include <stdio.h>
+#include <unistd.h>
 #include "player.h"
 
 struct state{

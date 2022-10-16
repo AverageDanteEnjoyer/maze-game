@@ -1,7 +1,6 @@
 //
 // Created by student on 11.10.2022.
 //
-
 #include "board.h"
 #include <stdlib.h>
 
@@ -20,7 +19,7 @@ struct board_t* board_create(int width, int height){
             board->squares[i*width+j].cords.x=j;
             board->squares[i*width+j].cords.y=i;
             board->squares[i*width+j].object=AIR;
-            board->squares[i*width+j].pid_or_coins=0;
+            board->squares[i*width+j].pnumber_or_coins=0;
         }
     }
     return board;

@@ -44,7 +44,11 @@ void client_update_screen(struct player_info* info){
             printw("\n");
         }
         attron(COLOR_PAIR(sq[i].object));
-        mvprintw(sq[i].cords.y+1, sq[i].cords.x, "%c", sq[i].object);
+        if(sq[i].object==PLAYER){
+            mvprintw(sq[i].cords.y+1, sq[i].cords.x, "%d", sq[i].pnumber_or_coins);
+        }else{
+            mvprintw(sq[i].cords.y+1, sq[i].cords.x, "%c", sq[i].object);
+        }
         attroff(COLOR_PAIR(sq[i].object));
     }
 
@@ -69,10 +73,6 @@ void client_update_screen(struct player_info* info){
     mvprintw(10, 74, "%d", info->deaths);
     mvprintw(14, 74, "%d", info->c_found);
     mvprintw(15, 74, "%d", info->c_brought);
-    attron(COLOR_PAIR(PLAYER));
-    mvprintw(info->position.y+1, info->position.x, "%d", info->number);
-    attron(COLOR_PAIR(TEXT_COLOR));
-    //...
 
     mvprintw(17, 58, "Legend: ");
     attron(COLOR_PAIR(PLAYER));
