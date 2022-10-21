@@ -10,6 +10,7 @@
 #include "state.h"
 #include <time.h>
 #include <stdlib.h>
+#include "beast.h"
 
 #define TEXT_COLOR 1
 
@@ -135,6 +136,9 @@ void* handle_state_update(void* args){
                 move_p(&serv_state, &serv_state.players[i]);
             }
         }
+        for(int i=0;i<10;i++){
+            move_b(&serv_state, &serv_state.beasts[i]);
+        }
         update_screen(&serv_state);
         serv_state.turn++;
         for(int i=0;i<4;i++){
@@ -162,18 +166,27 @@ void* handle_state_update(void* args){
 
 void* handle_server_input(void* args){
     char c;
-
+    int no_beasts=0;
     while(1){
         c=getch();
         switch(c){
             case 'Q':
             case 'q':
+                for(int i=0;i<no_beasts;i++){
+                    pthread_cancel(beast_thread_pool[i]);
+                }
                 return NULL;
-                break;
             case c_COINS:
             case t_COINS:
             case T_COINS:
                 add_treasure(&serv_state, c);
+                break;
+            case 'B':
+            case 'b':
+                if(no_beasts<10){
+                    pthread_create(&beast_thread_pool[no_beasts], NULL, &beast_routine, &no_beasts);
+                    pthread_detach(beast_thread_pool[no_beasts]);
+                }
                 break;
         }
     }
@@ -332,4 +345,140 @@ void player_on_disconnect(int player_number){
     speaker->pid=-1;
     speaker->socket_descriptor=-1;
     pthread_cancel(player_thread_pool[player_number]);
+}
+
+void* beast_routine(void* args){
+    int beast_number=*(int*)args;
+    struct beast_t* this_beast=&serv_state.beasts[beast_number];
+    this_beast->beast_id=beast_number;
+
+    while(1){
+        this_beast->position.x=(rand() % (BOARD_WIDTH-1)) + 1;
+        this_beast->position.y=(rand() % (BOARD_HEIGHT-1)) + 1;
+        if(serv_state.curr_board->squares[this_beast->position.y*BOARD_WIDTH+this_beast->position.x].object==AIR){
+            serv_state.curr_board->squares[this_beast->position.y*BOARD_WIDTH+this_beast->position.x].object=BEAST;
+            break;
+        }
+    }
+    while(1){
+        int player_x, player_y;
+        int has_moved=0;
+        int tries[4]={0, 0, 0, 0};
+        int is_chasing=player_to_chase(this_beast->position.x, this_beast->position.y, &player_x, &player_y);
+        for(int i=0;i<1000;i++){
+            this_beast->last_key_pressed=rand() % (5-2+1) + 2;
+            if(this_beast->last_key_pressed == right){
+                if(serv_state.curr_board->squares[this_beast->position.y*BOARD_WIDTH + this_beast->position.x+1].object!=WALL){
+                    if(is_chasing){
+                        if(this_beast->position.x>player_x){
+                            continue;
+                        }
+                    }
+                    has_moved=1;
+                    break;
+                }
+            }else if(this_beast->last_key_pressed == left){
+                if(serv_state.curr_board->squares[this_beast->position.y*BOARD_WIDTH + this_beast->position.x-1].object!=WALL){
+                    if(is_chasing){
+                        if(this_beast->position.x<player_x){
+                            continue;
+                        }
+                    }
+                    has_moved=1;
+                    break;
+                }
+            }else if(this_beast->last_key_pressed == top){
+                if(serv_state.curr_board->squares[(this_beast->position.y-1)*BOARD_WIDTH + this_beast->position.x].object!=WALL){
+                    if(is_chasing){
+                        if(this_beast->position.y<player_y){
+                            continue;
+                        }
+                    }
+                    has_moved=1;
+                    break;
+                }
+            }else if(this_beast->last_key_pressed == bot){
+                if(serv_state.curr_board->squares[(this_beast->position.y+1)*BOARD_WIDTH + this_beast->position.x].object!=WALL){
+                    if(is_chasing){
+                        if(this_beast->position.y>player_y){
+                            continue;
+                        }
+                    }
+                    has_moved=1;
+                    break;
+                }
+            }
+            if(!has_moved){
+                tries[this_beast->last_key_pressed-2]=1;
+                this_beast->last_key_pressed=0;
+            }
+            if(tries[0]==1 && tries[1]==1 && tries[2]==1 && tries[3]==1){
+                break;
+            }
+        }
+        usleep(250000);
+    }
+}
+
+int player_to_chase(int beast_x, int beast_y, int* x, int* y){
+    for(int i=-2;i<=2;i++){
+        int temp_x=beast_x+i;
+        if(temp_x>0 && temp_x<BOARD_WIDTH){
+            if(serv_state.curr_board->squares[beast_y*BOARD_WIDTH+temp_x].object==PLAYER){
+                *x=temp_x;
+                *y=beast_y;
+                return 1;
+            }
+        }
+
+        int temp_y=beast_y+i;
+        if(temp_y>0 && temp_y<BOARD_HEIGHT){
+            if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+beast_x].object==PLAYER){
+                *x=beast_x;
+                *y=temp_y;
+                return 1;
+            }
+        }
+
+        temp_x=beast_x+i;
+        temp_y=beast_y+i;
+        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT){
+            if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==PLAYER){
+                *x=temp_x;
+                *y=temp_y;
+                return 1;
+            }
+        }
+
+        temp_x=beast_x-i;
+        temp_y=beast_y+i;
+        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT){
+            if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==PLAYER){
+                *x=temp_x;
+                *y=temp_y;
+                return 1;
+            }
+        }
+
+        temp_x=beast_x+i;
+        temp_y=beast_y-i;
+        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT){
+            if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==PLAYER){
+                *x=temp_x;
+                *y=temp_y;
+                return 1;
+            }
+        }
+
+        temp_x=beast_x-i;
+        temp_y=beast_y-i;
+        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT){
+            if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==PLAYER){
+                *x=temp_x;
+                *y=temp_y;
+                return 1;
+            }
+        }
+    }
+    return 0;
 }

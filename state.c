@@ -24,6 +24,9 @@ int init_state(struct state* st){
         st->players[i].socket_descriptor=-1;
         st->players[i].pid=-1;
     }
+    for(int i=0;i<10;i++){
+        st->beasts[i].beast_id=-1;
+    }
     st->turn=1;
     st->campsite.x=23;
     st->campsite.y=11;
@@ -121,6 +124,10 @@ void move_p(struct state* serv_state, struct player_t* player){
         serv_state->curr_board->squares[killed_player->spawn.y*BOARD_WIDTH+killed_player->spawn.x].object=PLAYER;
         serv_state->curr_board->squares[killed_player->spawn.y*BOARD_WIDTH+killed_player->spawn.x].pnumber_or_coins=killed_player->number;
     }
+}
+
+void move_b(struct state* serv_state, struct beast_t* beast){
+
 }
 
 void add_treasure(struct state* serv_state, enum object_type added_obj){
