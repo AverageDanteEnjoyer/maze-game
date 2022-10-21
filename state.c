@@ -122,3 +122,17 @@ void move_p(struct state* serv_state, struct player_t* player){
         serv_state->curr_board->squares[killed_player->spawn.y*BOARD_WIDTH+killed_player->spawn.x].pnumber_or_coins=killed_player->number;
     }
 }
+
+void add_treasure(struct state* serv_state, enum object_type added_obj){
+    int x;
+    int y;
+    while(1){
+        x=(rand() % (BOARD_WIDTH-1)) + 1;
+        y=(rand() % (BOARD_HEIGHT-1)) + 1;
+
+        if(serv_state->curr_board->squares[y*BOARD_WIDTH+x].object==AIR){
+            serv_state->curr_board->squares[y*BOARD_WIDTH+x].object=added_obj;
+            break;
+        }
+    }
+}

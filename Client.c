@@ -11,6 +11,7 @@ void* listen_s(void* args){
     while(recv(endpoint, &received, sizeof(struct player_info), 0) > 0){
         client_update_screen(&received);
     }
+    clear();
     return NULL;
 }
 

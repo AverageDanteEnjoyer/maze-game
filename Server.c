@@ -11,17 +11,19 @@
 #include <time.h>
 #include <stdlib.h>
 
-pthread_mutex_t prevent_validate_disrupt;
-
 #define TEXT_COLOR 1
 
-pthread_t thread_pool[4];
+pthread_mutex_t prevent_validate_disrupt;
+
+pthread_t player_thread_pool[4];
+pthread_t beast_thread_pool[10];
 pthread_t state_thread;
 pthread_t quit_thread;
 pthread_t connection_thread;
+
 struct state serv_state;
 
-int init_Server(char * ip){
+int init_server_process(char* ip){
     srand(time(NULL));
     struct sockaddr_in serv_addr;
 
@@ -60,16 +62,18 @@ int init_Server(char * ip){
     pthread_create(&state_thread, NULL, &handle_state_update, NULL);
     pthread_detach(state_thread);
 
-    pthread_create(&quit_thread, NULL, &Quit, NULL);
+    pthread_create(&quit_thread, NULL, &handle_server_input, NULL);
     pthread_join(quit_thread, NULL);
 
-    pthread_mutex_destroy(&prevent_validate_disrupt);
+    pthread_cancel(connection_thread);
+    pthread_cancel(state_thread);
     for(int i=0;i<4;i++){
         if(serv_state.players[i].socket_descriptor!=-1){
             close(serv_state.players[i].socket_descriptor);
             serv_state.players[i].socket_descriptor=-1;
         }
     }
+    pthread_mutex_destroy(&prevent_validate_disrupt);
     close(serv_state.endpoint);
 
     destroy_state(&serv_state);
@@ -88,9 +92,8 @@ void* handle_connection(void* args){
                 continue;
             }
             serv_state.players[free_index].socket_descriptor=soc_desc;
-            serv_state.players[free_index].type=player;
-            pthread_create(&thread_pool[free_index], NULL, &listen_to_client, &serv_state.players[free_index]);
-            pthread_detach(thread_pool[free_index]);
+            pthread_create(&player_thread_pool[free_index], NULL, &listen_to_client, &serv_state.players[free_index]);
+            pthread_detach(player_thread_pool[free_index]);
         }
     }
 }
@@ -157,13 +160,21 @@ void* handle_state_update(void* args){
     }
 }
 
-void* Quit(void* args){
+void* handle_server_input(void* args){
     char c;
 
     while(1){
         c=getch();
-        if(c == 'Q' || c == 'q'){
-            return NULL;
+        switch(c){
+            case 'Q':
+            case 'q':
+                return NULL;
+                break;
+            case c_COINS:
+            case t_COINS:
+            case T_COINS:
+                add_treasure(&serv_state, c);
+                break;
         }
     }
 }
@@ -320,4 +331,5 @@ void player_on_disconnect(int player_number){
     bzero(speaker, sizeof(struct player_t));
     speaker->pid=-1;
     speaker->socket_descriptor=-1;
+    pthread_cancel(player_thread_pool[player_number]);
 }

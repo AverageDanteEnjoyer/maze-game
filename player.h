@@ -21,7 +21,6 @@ struct player_t{
     int number;
     int socket_descriptor;
 
-    enum entity_type type;
     enum object_type last_object;
     char last_pressed_key;
 

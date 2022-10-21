@@ -18,5 +18,6 @@ struct state{
 int init_state(struct state* st);
 void destroy_state(struct state* st);
 void move_p(struct state* serv_state, struct player_t* player);
+void add_treasure(struct state* serv_state, enum object_type added_obj);
 
 #endif //SO2_GAME_STATE_H
