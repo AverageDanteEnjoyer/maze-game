@@ -127,7 +127,48 @@ void move_p(struct state* serv_state, struct player_t* player){
 }
 
 void move_b(struct state* serv_state, struct beast_t* beast){
+    int direction=(int)beast->last_key_pressed;
+    struct square_t* destination;
+    struct square_t* curr_square=&serv_state->curr_board->squares[beast->position.y*BOARD_WIDTH+beast->position.x];
 
+    if(direction == right){
+        destination=(curr_square+1);
+    }else if(direction == left){
+        destination=(curr_square-1);
+    }else if(direction == top){
+        destination=(curr_square-BOARD_WIDTH);
+    }else if(direction == bot){
+        destination=(curr_square+BOARD_WIDTH);
+    }else{
+        return;
+    }
+
+    if(destination->object==WALL || destination->object==BEAST){
+        return;
+    }
+
+    curr_square->object=beast->last_object;
+    if(destination->object!=PLAYER){
+        beast->last_object=destination->object;
+    }else{
+        struct player_t* killed_player;
+        for(int i=0;i<4;i++){
+            if(serv_state->players[i].number==destination->pnumber_or_coins){
+                killed_player=&serv_state->players[i];
+            }
+        }
+        beast->last_object=DROP;
+        destination->pnumber_or_coins=killed_player->c_found;
+        killed_player->c_found=0;
+        killed_player->last_object=AIR;
+        killed_player->position.x=killed_player->spawn.x;
+        killed_player->position.y=killed_player->spawn.y;
+        serv_state->curr_board->squares[killed_player->spawn.y*BOARD_WIDTH+killed_player->spawn.x].object=PLAYER;
+        serv_state->curr_board->squares[killed_player->spawn.y*BOARD_WIDTH+killed_player->spawn.x].pnumber_or_coins=killed_player->number;
+    }
+    destination->object=BEAST;
+    beast->position.x=destination->cords.x;
+    beast->position.y=destination->cords.y;
 }
 
 void add_treasure(struct state* serv_state, enum object_type added_obj){

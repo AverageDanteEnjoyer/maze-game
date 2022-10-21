@@ -131,13 +131,13 @@ void* listen_to_client(void* args){
 void* handle_state_update(void* args){
     while(1){
         pthread_mutex_lock(&prevent_validate_disrupt);
+        for(int i=0;i<10;i++){
+            move_b(&serv_state, &serv_state.beasts[i]);
+        }
         for(int i=0;i<4;i++){
             if(serv_state.players[i].pid!=-1){
                 move_p(&serv_state, &serv_state.players[i]);
             }
-        }
-        for(int i=0;i<10;i++){
-            move_b(&serv_state, &serv_state.beasts[i]);
         }
         update_screen(&serv_state);
         serv_state.turn++;
@@ -186,6 +186,7 @@ void* handle_server_input(void* args){
                 if(no_beasts<10){
                     pthread_create(&beast_thread_pool[no_beasts], NULL, &beast_routine, &no_beasts);
                     pthread_detach(beast_thread_pool[no_beasts]);
+                    no_beasts++;
                 }
                 break;
         }
@@ -203,7 +204,7 @@ void init_colors(){
     init_pair(BUSHES, COLOR_GREEN, COLOR_BLACK);
     init_pair(TEXT_COLOR, COLOR_WHITE, COLOR_BLACK);
     init_pair(PLAYER, COLOR_WHITE, COLOR_BLUE);
-    init_pair(BEAST, COLOR_RED, COLOR_BLACK);
+    init_pair(BEAST, COLOR_BLUE, COLOR_BLACK);
 }
 void update_screen(struct state* st){
     move(0, 0);
@@ -351,6 +352,8 @@ void* beast_routine(void* args){
     int beast_number=*(int*)args;
     struct beast_t* this_beast=&serv_state.beasts[beast_number];
     this_beast->beast_id=beast_number;
+    this_beast->last_key_pressed=0;
+    this_beast->last_object=AIR;
 
     while(1){
         this_beast->position.x=(rand() % (BOARD_WIDTH-1)) + 1;
@@ -361,122 +364,167 @@ void* beast_routine(void* args){
         }
     }
     while(1){
+        pthread_mutex_lock(&prevent_validate_disrupt);
+        int tries[4]={0,0,0,0};
         int player_x, player_y;
-        int has_moved=0;
-        int tries[4]={0, 0, 0, 0};
         int is_chasing=player_to_chase(this_beast->position.x, this_beast->position.y, &player_x, &player_y);
-        for(int i=0;i<1000;i++){
+        while(1){
             this_beast->last_key_pressed=rand() % (5-2+1) + 2;
             if(this_beast->last_key_pressed == right){
-                if(serv_state.curr_board->squares[this_beast->position.y*BOARD_WIDTH + this_beast->position.x+1].object!=WALL){
+                if(serv_state.curr_board->squares[this_beast->position.y*BOARD_WIDTH + this_beast->position.x+1].object!=WALL
+                && serv_state.curr_board->squares[this_beast->position.y*BOARD_WIDTH + this_beast->position.x+1].object!=BEAST){
                     if(is_chasing){
                         if(this_beast->position.x>player_x){
+                            tries[this_beast->last_key_pressed-2]=1;
+                            this_beast->last_key_pressed=0;
                             continue;
                         }
                     }
-                    has_moved=1;
                     break;
                 }
             }else if(this_beast->last_key_pressed == left){
-                if(serv_state.curr_board->squares[this_beast->position.y*BOARD_WIDTH + this_beast->position.x-1].object!=WALL){
+                if(serv_state.curr_board->squares[this_beast->position.y*BOARD_WIDTH + this_beast->position.x-1].object!=WALL
+                   && serv_state.curr_board->squares[this_beast->position.y*BOARD_WIDTH + this_beast->position.x-1].object!=BEAST){
                     if(is_chasing){
                         if(this_beast->position.x<player_x){
+                            tries[this_beast->last_key_pressed-2]=1;
+                            this_beast->last_key_pressed=0;
                             continue;
                         }
                     }
-                    has_moved=1;
                     break;
                 }
             }else if(this_beast->last_key_pressed == top){
-                if(serv_state.curr_board->squares[(this_beast->position.y-1)*BOARD_WIDTH + this_beast->position.x].object!=WALL){
+                if(serv_state.curr_board->squares[(this_beast->position.y-1)*BOARD_WIDTH + this_beast->position.x].object!=WALL
+                   && serv_state.curr_board->squares[(this_beast->position.y-1)*BOARD_WIDTH + this_beast->position.x].object!=BEAST){
                     if(is_chasing){
                         if(this_beast->position.y<player_y){
+                            tries[this_beast->last_key_pressed-2]=1;
+                            this_beast->last_key_pressed=0;
                             continue;
                         }
                     }
-                    has_moved=1;
                     break;
                 }
             }else if(this_beast->last_key_pressed == bot){
-                if(serv_state.curr_board->squares[(this_beast->position.y+1)*BOARD_WIDTH + this_beast->position.x].object!=WALL){
+                if(serv_state.curr_board->squares[(this_beast->position.y+1)*BOARD_WIDTH + this_beast->position.x].object!=WALL
+                   && serv_state.curr_board->squares[(this_beast->position.y+1)*BOARD_WIDTH + this_beast->position.x].object!=BEAST){
                     if(is_chasing){
                         if(this_beast->position.y>player_y){
+                            tries[this_beast->last_key_pressed-2]=1;
+                            this_beast->last_key_pressed=0;
                             continue;
                         }
                     }
-                    has_moved=1;
                     break;
                 }
             }
-            if(!has_moved){
-                tries[this_beast->last_key_pressed-2]=1;
-                this_beast->last_key_pressed=0;
-            }
+            tries[this_beast->last_key_pressed-2]=1;
+            this_beast->last_key_pressed=0;
+
             if(tries[0]==1 && tries[1]==1 && tries[2]==1 && tries[3]==1){
                 break;
             }
         }
-        usleep(250000);
+        pthread_mutex_unlock(&prevent_validate_disrupt);
+        usleep(400000);
     }
 }
 
 int player_to_chase(int beast_x, int beast_y, int* x, int* y){
-    for(int i=-2;i<=2;i++){
+    int lock[6]={0,0,0,0,0,0};
+    for(int i=-5;i<=5;i++){
         int temp_x=beast_x+i;
-        if(temp_x>0 && temp_x<BOARD_WIDTH){
+        if(temp_x>0 && temp_x<BOARD_WIDTH && !lock[0]){
             if(serv_state.curr_board->squares[beast_y*BOARD_WIDTH+temp_x].object==PLAYER){
-                *x=temp_x;
-                *y=beast_y;
+                for(int j=0;j<4;j++){
+                    if(serv_state.curr_board->squares[beast_y*BOARD_WIDTH+temp_x].pnumber_or_coins==serv_state.players[j].number){
+                        *x=serv_state.players[j].position.x;
+                        *y=serv_state.players[j].position.y;
+                    }
+                }
                 return 1;
+            }else if(serv_state.curr_board->squares[beast_y*BOARD_WIDTH+temp_x].object==WALL){
+                lock[0]=1;
             }
         }
 
         int temp_y=beast_y+i;
-        if(temp_y>0 && temp_y<BOARD_HEIGHT){
+        if(temp_y>0 && temp_y<BOARD_HEIGHT && !lock[1]){
             if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+beast_x].object==PLAYER){
-                *x=beast_x;
-                *y=temp_y;
+                for(int j=0;j<4;j++){
+                    if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+beast_x].pnumber_or_coins==serv_state.players[j].number){
+                        *x=serv_state.players[j].position.x;
+                        *y=serv_state.players[j].position.y;
+                    }
+                }
                 return 1;
+            }else if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+beast_x].object==WALL){
+                lock[1]=1;
             }
         }
 
         temp_x=beast_x+i;
         temp_y=beast_y+i;
-        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT){
+        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT && !lock[2]){
             if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==PLAYER){
-                *x=temp_x;
-                *y=temp_y;
+                for(int j=0;j<4;j++){
+                    if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].pnumber_or_coins==serv_state.players[j].number){
+                        *x=serv_state.players[j].position.x;
+                        *y=serv_state.players[j].position.y;
+                    }
+                }
                 return 1;
+            }else if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==WALL){
+                lock[2]=1;
             }
         }
 
         temp_x=beast_x-i;
         temp_y=beast_y+i;
-        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT){
+        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT && !lock[3]){
             if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==PLAYER){
-                *x=temp_x;
-                *y=temp_y;
+                for(int j=0;j<4;j++){
+                    if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].pnumber_or_coins==serv_state.players[j].number){
+                        *x=serv_state.players[j].position.x;
+                        *y=serv_state.players[j].position.y;
+                    }
+                }
                 return 1;
+            }else if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==WALL){
+                lock[3]=1;
             }
         }
 
         temp_x=beast_x+i;
         temp_y=beast_y-i;
-        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT){
+        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT && !lock[4]){
             if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==PLAYER){
-                *x=temp_x;
-                *y=temp_y;
+                for(int j=0;j<4;j++){
+                    if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].pnumber_or_coins==serv_state.players[j].number){
+                        *x=serv_state.players[j].position.x;
+                        *y=serv_state.players[j].position.y;
+                    }
+                }
                 return 1;
+            }else if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==WALL){
+                lock[4]=1;
             }
         }
 
         temp_x=beast_x-i;
         temp_y=beast_y-i;
-        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT){
+        if(temp_x>0 && temp_x<BOARD_WIDTH && temp_y>0 && temp_y<BOARD_HEIGHT && !lock[5]){
             if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==PLAYER){
-                *x=temp_x;
-                *y=temp_y;
+                for(int j=0;j<4;j++){
+                    if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].pnumber_or_coins==serv_state.players[j].number){
+                        *x=serv_state.players[j].position.x;
+                        *y=serv_state.players[j].position.y;
+                    }
+                }
                 return 1;
+            }else if(serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x].object==WALL){
+                lock[5]=1;
             }
         }
     }

@@ -11,6 +11,7 @@ struct beast_t{
     int beast_id;
     struct point_t position;
     char last_key_pressed;
+    enum object_type last_object;
 };
 
 
