@@ -3,14 +3,10 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include "Server.h"
 #include "Client.h"
-#include <pthread.h>
 
 int main(){
-    pthread_t t1, t2;
-
-    int endpoint = 0;
+    int endpoint;
     char ip[]="127.0.0.1";
     struct sockaddr_in serv_addr;
 
@@ -29,25 +25,8 @@ int main(){
     }
 
     if(connect(endpoint, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0){
-        init_server_process(ip);
-        return 0;
+        close(endpoint);
+        return init_server_process(ip);
     }
-    int pid=getpid();
-
-    initscr();
-    start_color();
-    init_colors();
-
-    if(send(endpoint, &pid, sizeof(int), 0) > 0){
-        pthread_create(&t1, NULL, &listen_s, &endpoint);
-    }
-
-    pthread_create(&t2, NULL, &send_s, &endpoint);
-    pthread_join(t2, NULL);
-
-    close(endpoint);
-    pthread_join(t1, NULL);
-
-    endwin();
-    return 0;
+    return init_player_client(endpoint);
 }

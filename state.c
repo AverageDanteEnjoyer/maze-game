@@ -119,6 +119,9 @@ void move_p(struct state* serv_state, struct player_t* player){
         killed_player->position.x=killed_player->spawn.x;
         killed_player->position.y=killed_player->spawn.y;
 
+        player->deaths++;
+        killed_player->deaths++;
+
         serv_state->curr_board->squares[player->spawn.y*BOARD_WIDTH+player->spawn.x].object=PLAYER;
         serv_state->curr_board->squares[player->spawn.y*BOARD_WIDTH+player->spawn.x].pnumber_or_coins=player->number;
         serv_state->curr_board->squares[killed_player->spawn.y*BOARD_WIDTH+killed_player->spawn.x].object=PLAYER;
@@ -163,6 +166,7 @@ void move_b(struct state* serv_state, struct beast_t* beast){
         killed_player->last_object=AIR;
         killed_player->position.x=killed_player->spawn.x;
         killed_player->position.y=killed_player->spawn.y;
+        killed_player->deaths++;
         serv_state->curr_board->squares[killed_player->spawn.y*BOARD_WIDTH+killed_player->spawn.x].object=PLAYER;
         serv_state->curr_board->squares[killed_player->spawn.y*BOARD_WIDTH+killed_player->spawn.x].pnumber_or_coins=killed_player->number;
     }

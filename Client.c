@@ -4,6 +4,28 @@
 
 #include "Client.h"
 
+int init_player_client(int endpoint){
+    pthread_t t1, t2;
+    int pid=getpid();
+
+    initscr();
+    start_color();
+    init_colors();
+
+    if(send(endpoint, &pid, sizeof(int), 0) > 0){
+        pthread_create(&t1, NULL, &listen_s, &endpoint);
+    }
+
+    pthread_create(&t2, NULL, &send_s, &endpoint);
+    pthread_join(t2, NULL);
+
+    close(endpoint);
+    pthread_join(t1, NULL);
+
+    endwin();
+    return 0;
+}
+
 void* listen_s(void* args){
     int endpoint=*(int*)args;
     struct player_info received;
@@ -21,7 +43,6 @@ void* send_s(void* args){
 
     keypad(stdscr, TRUE);
     curs_set(0);
-
     timeout(500);
 
     while(1){

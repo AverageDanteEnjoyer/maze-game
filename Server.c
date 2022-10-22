@@ -72,11 +72,12 @@ int init_server_process(char* ip){
         if(serv_state.players[i].socket_descriptor!=-1){
             close(serv_state.players[i].socket_descriptor);
             serv_state.players[i].socket_descriptor=-1;
+            pthread_cancel(player_thread_pool[i]);
         }
     }
     pthread_mutex_destroy(&prevent_validate_disrupt);
-    close(serv_state.endpoint);
 
+    close(serv_state.endpoint);
     destroy_state(&serv_state);
     endwin();
     return 0;
@@ -262,7 +263,6 @@ void update_screen(struct state* st){
             mvprintw(10, 74+i*10, "-");
         }
     }
-    //...
 
     mvprintw(17, 58, "Legend: ");
     attron(COLOR_PAIR(PLAYER));
@@ -448,16 +448,17 @@ void* beast_routine(void* args){
 
 int player_to_chase(int beast_x, int beast_y, int* x, int* y){
     int lock[8]={0,0,0,0,0,0,0,0};
+    struct square_t* sq;
+    int temp_x;
+    int temp_y;
+    *x=-1;
+    *y=-1;
 
-    for(int i=0;i<2;i++){
-        struct square_t* sq;
-        int temp_x;
-        int temp_y;
-
+    for(int i=1;i<=2;i++){
         temp_x=beast_x+i;
         temp_y=beast_y;
-        sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
         if(temp_x<BOARD_WIDTH && !lock[0]){
+            sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
             if(sq->object==PLAYER){
                 for(int j=0;j<4;j++){
                     if(sq->pnumber_or_coins==serv_state.players[j].number){
@@ -473,8 +474,8 @@ int player_to_chase(int beast_x, int beast_y, int* x, int* y){
 
         temp_x=beast_x-i;
         temp_y=beast_y;
-        sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
         if(temp_x>0 && !lock[1]){
+            sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
             if(sq->object==PLAYER){
                 for(int j=0;j<4;j++){
                     if(sq->pnumber_or_coins==serv_state.players[j].number){
@@ -490,8 +491,8 @@ int player_to_chase(int beast_x, int beast_y, int* x, int* y){
 
         temp_x=beast_x;
         temp_y=beast_y+i;
-        sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
         if(temp_y<BOARD_HEIGHT && !lock[2]){
+            sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
             if(sq->object==PLAYER){
                 for(int j=0;j<4;j++){
                     if(sq->pnumber_or_coins==serv_state.players[j].number){
@@ -507,8 +508,8 @@ int player_to_chase(int beast_x, int beast_y, int* x, int* y){
 
         temp_x=beast_x;
         temp_y=beast_y-i;
-        sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
         if(temp_y>0 && !lock[3]){
+            sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
             if(sq->object==PLAYER){
                 for(int j=0;j<4;j++){
                     if(sq->pnumber_or_coins==serv_state.players[j].number){
@@ -524,8 +525,8 @@ int player_to_chase(int beast_x, int beast_y, int* x, int* y){
 
         temp_x=beast_x+i;
         temp_y=beast_y+i;
-        sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
         if(temp_x<BOARD_WIDTH && temp_y<BOARD_HEIGHT && !lock[4]){
+            sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
             if(sq->object==PLAYER){
                 for(int j=0;j<4;j++){
                     if(sq->pnumber_or_coins==serv_state.players[j].number){
@@ -541,8 +542,8 @@ int player_to_chase(int beast_x, int beast_y, int* x, int* y){
 
         temp_x=beast_x-i;
         temp_y=beast_y-i;
-        sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
         if(temp_x>0 && temp_y>0 && !lock[5]){
+            sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
             if(sq->object==PLAYER){
                 for(int j=0;j<4;j++){
                     if(sq->pnumber_or_coins==serv_state.players[j].number){
@@ -558,8 +559,8 @@ int player_to_chase(int beast_x, int beast_y, int* x, int* y){
 
         temp_x=beast_x-i;
         temp_y=beast_y+i;
-        sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
         if(temp_x>0 && temp_y<BOARD_HEIGHT && !lock[6]){
+            sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
             if(sq->object==PLAYER){
                 for(int j=0;j<4;j++){
                     if(sq->pnumber_or_coins==serv_state.players[j].number){
@@ -575,8 +576,8 @@ int player_to_chase(int beast_x, int beast_y, int* x, int* y){
 
         temp_x=beast_x+i;
         temp_y=beast_y-i;
-        sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
         if(temp_x<BOARD_WIDTH && temp_y>0 && !lock[7]){
+            sq=&serv_state.curr_board->squares[temp_y*BOARD_WIDTH+temp_x];
             if(sq->object==PLAYER){
                 for(int j=0;j<4;j++){
                     if(sq->pnumber_or_coins==serv_state.players[j].number){
