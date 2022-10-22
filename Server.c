@@ -117,15 +117,14 @@ void* listen_to_client(void* args){
     int recv_size=0;
     while(1){
         recv_size=recv(speaker->socket_descriptor, &key_pressed, 1, 0);
+        pthread_mutex_lock(&prevent_validate_disrupt);
         if(recv_size<=0){
-
-            pthread_mutex_lock(&prevent_validate_disrupt);
             player_on_disconnect(player_number);
             pthread_mutex_unlock(&prevent_validate_disrupt);
-
             break;
         }
         speaker->last_pressed_key=key_pressed;
+        pthread_mutex_unlock(&prevent_validate_disrupt);
     }
 }
 
@@ -377,12 +376,6 @@ void* beast_routine(void* args){
         int tries[4]={0,0,0,0};
         int player_x, player_y;
         int is_chasing=player_to_chase(this_beast->position.x, this_beast->position.y, &player_x, &player_y);
-        if(is_chasing){
-            init_pair(BEAST, COLOR_RED, COLOR_BLACK);
-            refresh();
-        }else{
-            init_pair(BEAST, COLOR_BLUE, COLOR_BLACK);
-        }
         while(1){
             this_beast->last_key_pressed=rand() % (5-2+1) + 2;
             if(this_beast->last_key_pressed == right){
